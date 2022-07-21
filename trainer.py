@@ -108,7 +108,7 @@ class Trainer:
 
     print(final_log)
         
-    if self.tr_step == self.max_step-1:
+    if self.tr_step == self.max_step:
       print(f"""
       Completed training after {self.max_step} training steps with:
         
@@ -228,7 +228,7 @@ class Trainer:
         self.optimizer.step()
         
         if (self.tr_step+1) % self.valid_step == 0:
-          print("validating...")
+          print(f"validating step {self.tr_step}...")
           # validation step
           train_loss = running_loss / self.valid_step
 
@@ -259,6 +259,27 @@ class Trainer:
           self.model.train()
         
         self.tr_step += 1
+        if self.tr_step == self.max_step:
+          break
+    
+    # max step reached; training done; validate one last time
+    print(f"validating final step {self.tr_step}...")
+    # validation step
+    self.model.eval()
+    # quantize params since model is in `eval` mode, and thus forward pass
+    # will not quantize them
+    if self.binary_training:
+      self.model.save_and_quantize_params()
+    valid_loss, cer, decoded_output = self.validate()
+
+    # update logs checkpoints and milestones
+    self.latest['loss']['train'] = train_loss
+    self.latest['loss']['valid'] = valid_loss
+    self.latest['cer']['valid'] = cer
+
+    self.log_progress(decoded_output)
+    self.update_milestone()
+    self.write_progress()
 
           
 
