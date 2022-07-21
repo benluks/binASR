@@ -108,7 +108,7 @@ class Trainer:
 
     print(final_log)
         
-    if self.tr_step == self.max_step:
+    if self.tr_step == self.max_step-1:
       print(f"""
       Completed training after {self.max_step} training steps with:
         
@@ -204,13 +204,11 @@ class Trainer:
         'cer': {'train': None, 'valid': None}   
     }
 
+    self.model.train()
+    running_loss = 0
     self.tr_step = 0
 
     while self.tr_step < self.max_step:
-      print("step {}".format(self.tr_step))
-      running_loss = 0
-      
-      self.model.train()
       for batch in self.train_loader:
         
         self.optimizer.zero_grad()
@@ -257,8 +255,10 @@ class Trainer:
                   par.data = par.org
           
           running_loss = 0
+          self.model.train()
         
         self.tr_step += 1
+        print(f"step {self.tr_step}")
 
           
 
