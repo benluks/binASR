@@ -228,6 +228,7 @@ class Trainer:
         self.optimizer.step()
         
         if self.tr_step+1 % self.valid_step == 0:
+          print("validating...")
           # validation step
           train_loss = running_loss / self.valid_step
 
