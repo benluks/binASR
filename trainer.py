@@ -150,6 +150,28 @@ class Trainer:
     return loss, cer, zip(predictions[:5], transcripts[:5])
 
 
+  def validate_and_log(self):
+    # quantize params since model is in `eval` mode, and thus forward pass
+    # will not quantize them
+    if self.binary_training:
+      self.model.save_and_quantize_params()
+    valid_loss, cer, decoded_output = self.validate()
+
+    # update logs checkpoints and milestones
+    self.latest['loss']['valid'] = valid_loss
+    self.latest['cer']['valid'] = cer
+
+    self.log_progress(decoded_output)
+    self.update_milestone()
+    self.write_progress()
+
+    # reset full precision weights so next forward pass doesn't save
+    # quantized params as `par.org`, thereby erasing full-precision `org`
+    if self.tr_step != self.max_step-1:
+      for par in self.model.parameters():
+          if hasattr(par, 'org'):
+            par.data = par.org
+
   def __call__(self):
     self.train()
 
@@ -197,7 +219,7 @@ class Trainer:
     self.best = {
         # computed on validation data
         'loss': {'step': -1, 'value': float('INF')},
-        'cer': {'step': -1, 'value': 0}
+        'cer': {'step': -1, 'value': float('INF')}
     }
     self.latest = {
         'loss': {'train': None, 'valid': None},
@@ -229,35 +251,15 @@ class Trainer:
 
         self.optimizer.step()
         
-        if (self.tr_step+1) % self.valid_step == 0:
+        if self.tr_step % self.valid_step == 0:
           print(f"validating step {self.tr_step}...")
-          # validation step
-          train_loss = running_loss / self.valid_step
+          # record and reset training loss
+          self.latest['loss']['train'] = running_loss / self.valid_step
+          running_loss = 0
 
           self.model.eval()
-          # quantize params since model is in `eval` mode, and thus forward pass
-          # will not quantize them
-          if self.binary_training:
-            self.model.save_and_quantize_params()
-          valid_loss, cer, decoded_output = self.validate()
-
-          # update logs checkpoints and milestones
-          self.latest['loss']['train'] = train_loss
-          self.latest['loss']['valid'] = valid_loss
-          self.latest['cer']['valid'] = cer
-
-          self.log_progress(decoded_output)
-          self.update_milestone()
-          self.write_progress()
-
-          # reset full precision weights so next forward pass doesn't save
-          # quantized params as `par.org`, thereby erasing full-precision `org`
-          if self.tr_step != self.max_step-1:
-            for par in self.model.parameters():
-                if hasattr(par, 'org'):
-                  par.data = par.org
+          self.validate_and_log()
           
-          running_loss = 0
           self.model.train()
         
         self.tr_step += 1
@@ -266,25 +268,7 @@ class Trainer:
           break
     
     pbar.close()
-   
-    # max step reached; training done; validate one last time
-    print(f"validating final step {self.tr_step}...")
-    # validation step
-    self.model.eval()
-    # quantize params since model is in `eval` mode, and thus forward pass
-    # will not quantize them
-    if self.binary_training:
-      self.model.save_and_quantize_params()
-    valid_loss, cer, decoded_output = self.validate()
-
-    # update logs checkpoints and milestones
-    self.latest['loss']['train'] = train_loss
-    self.latest['loss']['valid'] = valid_loss
-    self.latest['cer']['valid'] = cer
-
-    self.log_progress(decoded_output)
-    self.update_milestone()
-    self.write_progress()
+    self.validate_and_log()
 
           
 
