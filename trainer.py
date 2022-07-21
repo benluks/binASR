@@ -1,8 +1,9 @@
 from datetime import datetime
+from distutils.dir_util import create_tree
 from operator import lt, gt
 from pathlib import Path
 
-from jiwer import wer, cer
+from jiwer import cer as calculate_cer
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -24,6 +25,7 @@ class Trainer:
     self.batch_size = hparams['batch_size']
     self.binary_training = hparams['binary']
     self.valid_step = hparams['valid_step']
+    self.max_step = hparams['max_step']
     
     self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     self.verbose = hparams['verbose'] if 'verbose' in hparams.keys() else True
@@ -90,9 +92,9 @@ class Trainer:
     print(f'Successfully built! logs and checkpoint models can be found at {self.write_dir.resolve()}')
 
 
-  def write_progress(self, epoch):
+  def write_progress(self):
     
-    final_log = f"[{epoch}/{self.num_epochs}]:"
+    final_log = f"[{self.tr_step}/{self.max_step}]:"
     
     for metric in self.latest:
       for dset in self.latest[metric]:
@@ -106,12 +108,12 @@ class Trainer:
 
     print(final_log)
         
-    if epoch == self.num_epochs:
+    if self.tr_step == self.max_step:
       print(f"""
-      Completed training after {self.num_epochs} epochs with:
+      Completed training after {self.max_step} training steps with:
         
-        Best loss = {round(self.best['loss']['value'], 3)} in epoch {self.best['loss']['epoch']}, and
-        Best cer = {round(self.best['cer']['value']*100, 3)}% in epoch {self.best['cer']['epoch']}.
+        Best loss = {round(self.best['loss']['value'], 3)} in step {self.best['loss']['step']}, and
+        Best cer = {round(self.best['cer']['value']*100, 3)}% in step {self.best['cer']['step']}.
         """)
 
 
@@ -143,68 +145,68 @@ class Trainer:
         transcripts += trans
 
     loss = running_loss / len(self.valid_loader)
-    error = cer(transcripts, predictions)
+    cer = calculate_cer(transcripts, predictions)
 
-    return loss, error, zip(predictions[:5], transcripts[:5])
+    return loss, cer, zip(predictions[:5], transcripts[:5])
 
 
   def __call__(self):
     self.train()
 
 
-  def save_model(self, epoch):
+  def save_model(self):
 
     # delete old checkpoints
     [f.unlink() for f in self.checkpoint_dir.glob('*')]
 
-    torch.save(self.model.state_dict(), self.checkpoint_dir / f"e{epoch}.pth")
-    torch.save(self.optimizer.state_dict(), self.checkpoint_dir / f"opt_e{epoch}.pth")
+    torch.save(self.model.state_dict(), self.checkpoint_dir / f"e{self.tr_step}.pth")
+    torch.save(self.optimizer.state_dict(), self.checkpoint_dir / f"opt_e{self.tr_step}.pth")
 
     print("Saved new best model")
 
 
-  def log_progress(self, epoch, decoded_output):
+  def log_progress(self, decoded_output):
     for metric in self.latest:
       self.writer.add_scalars(
           metric, 
           {dset: value for dset, value in self.latest[metric].items() if value}, 
-          epoch)
+          self.tr_step)
     
     # write some text examples
     for idx, (pred, truth) in enumerate(decoded_output):
-      if epoch == 0:
-        self.writer.add_text(f'true_text_{idx}', truth, epoch)
-      self.writer.add_text(f'predicted_text_{idx}', pred, epoch)
+      if self.tr_step == 0:
+        self.writer.add_text(f'true_text_{idx}', truth, self.tr_step)
+      self.writer.add_text(f'predicted_text_{idx}', pred, self.tr_step)
 
 
-  def update_milestone(self, epoch):
+  def update_milestone(self):
     
     is_best = False
 
     for metric in self.latest:
       if self.latest[metric]['valid'] and lt(self.latest[metric]['valid'], self.best[metric]['value']):
         self.best[metric]['value'] = self.latest[metric]['valid']
-        self.best[metric]['epoch'] = epoch
+        self.best[metric]['step'] = self.tr_step
         is_best = True
 
     if is_best:
-      self.save_model(epoch)
+      self.save_model()
 
   def train(self):
 
     self.best = {
         # computed on validation data
-        'loss': {'epoch': -1, 'value': float('INF')},
-        'cer': {'epoch': -1, 'value': 0}
+        'loss': {'step': -1, 'value': float('INF')},
+        'cer': {'step': -1, 'value': 0}
     }
     self.latest = {
         'loss': {'train': None, 'valid': None},
         'cer': {'train': None, 'valid': None}   
     }
 
-    self.step = 0
+    self.tr_step = 0
 
-    for epoch in range(self.num_epochs):
+    while self.tr_step < self.max_step:
       
       running_loss = 0
       
@@ -218,6 +220,7 @@ class Trainer:
 
         # backpropagate and optimize
         loss.backward()
+        
         # reset to full precision weights here
         if self.binary_training:
           for par in self.model.parameters():
@@ -226,26 +229,39 @@ class Trainer:
 
         self.optimizer.step()
         
-      train_loss = running_loss / len(self.train_loader)
+        if self.tr_step+1 % self.valid_step == 0:
+          # validation step
+          train_loss = running_loss / self.valid_step
 
-      self.model.eval()
-      # quantize params since model is in `eval` mode, and thus forward pass
-      # will not quantize them
-      if self.binary_training:
-        self.model.save_and_quantize_params()
-      valid_loss, error, decoded_output = self.validate()
+          self.model.eval()
+          # quantize params since model is in `eval` mode, and thus forward pass
+          # will not quantize them
+          if self.binary_training:
+            self.model.save_and_quantize_params()
+          valid_loss, cer, decoded_output = self.validate()
 
-      # reset full precision weights so next forward pass doesn't save
-      # quantized params as `par.org`, thereby erasing full-precision `org`
-      if epoch != self.num_epochs-1:
-        for par in self.model.parameters():
-            if hasattr(par, 'org'):
-              par.data = par.org
+          # update logs checkpoints and milestones
+          self.latest['loss']['train'] = train_loss
+          self.latest['loss']['valid'] = valid_loss
+          self.latest['cer']['valid'] = cer
+
+          self.log_progress(decoded_output)
+          self.update_milestone()
+          self.write_progress()
+
+          # reset full precision weights so next forward pass doesn't save
+          # quantized params as `par.org`, thereby erasing full-precision `org`
+          if self.tr_step != self.max_step-1:
+            for par in self.model.parameters():
+                if hasattr(par, 'org'):
+                  par.data = par.org
+          
+          running_loss = 0
+        
+        self.tr_step += 1
+
+          
+
+          
       
-      self.latest['loss']['train'] = train_loss
-      self.latest['loss']['valid'] = valid_loss
-      self.latest['cer']['valid'] = error
-
-      self.log_progress(epoch, decoded_output)
-      self.update_milestone(epoch)
-      self.write_progress(epoch)
+      

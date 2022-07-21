@@ -4,6 +4,7 @@ hparams:
   num_epochs: 100
   optimizer: 'Adam'
   binary: False
+  max_step: 1000000
   valid_step: 100
 data:
   root: 'data_test'
