@@ -3,6 +3,8 @@ hparams:
   batch_size: 4
   num_epochs: 100
   optimizer: 'Adam'
+  binary: False
+  valid_step: 100
 data:
   root: 'data_test'
   train_split: 'libri-test'
@@ -13,7 +15,6 @@ data:
 model:
   num_layers: 4
   bias: False
-  binary: False
   hidden_size: 512
   bidirectional: True
 

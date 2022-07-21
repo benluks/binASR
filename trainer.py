@@ -22,6 +22,8 @@ class Trainer:
     self.num_epochs = hparams['num_epochs']
     self.lr = hparams['lr']
     self.batch_size = hparams['batch_size']
+    self.binary_training = hparams['binary']
+    self.valid_step = hparams['valid_step']
     
     self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     self.verbose = hparams['verbose'] if 'verbose' in hparams.keys() else True
@@ -64,6 +66,7 @@ class Trainer:
     # model
     kwargs['model']['input_size'] = kwargs['data']['num_mels'] + kwargs['data']['use_energy']
     kwargs['model']['output_size'] = len(labels)
+    kwargs['model']['binary'] = self.binary_training
     self.model = BinASRModel(**kwargs['model']).to(self.device)
 
     # optimization
@@ -168,8 +171,6 @@ class Trainer:
           epoch)
     
     # write some text examples
-    
-    # if epoch == 0:
     for idx, (pred, truth) in enumerate(decoded_output):
       if epoch == 0:
         self.writer.add_text(f'true_text_{idx}', truth, epoch)
@@ -201,6 +202,8 @@ class Trainer:
         'cer': {'train': None, 'valid': None}   
     }
 
+    self.step = 0
+
     for epoch in range(self.num_epochs):
       
       running_loss = 0
@@ -216,9 +219,10 @@ class Trainer:
         # backpropagate and optimize
         loss.backward()
         # reset to full precision weights here
-        for par in self.model.parameters():
-          if hasattr(par, 'org'):
-            par.data = par.org
+        if self.binary_training:
+          for par in self.model.parameters():
+            if hasattr(par, 'org'):
+              par.data = par.org
 
         self.optimizer.step()
         
@@ -227,7 +231,8 @@ class Trainer:
       self.model.eval()
       # quantize params since model is in `eval` mode, and thus forward pass
       # will not quantize them
-      self.model.save_and_quantize_params()
+      if self.binary_training:
+        self.model.save_and_quantize_params()
       valid_loss, error, decoded_output = self.validate()
 
       # reset full precision weights so next forward pass doesn't save
