@@ -207,7 +207,7 @@ class Trainer:
     self.tr_step = 0
 
     while self.tr_step < self.max_step:
-      
+      print("step {}".format(self.tr_step))
       running_loss = 0
       
       self.model.train()
