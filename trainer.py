@@ -117,8 +117,8 @@ class Trainer:
     input, input_lens, target, target_lens, transcripts = batch
     
     # for training, hidden and context aren't necessary
-    output = self.model(input, input_lens) 
-    loss = self.criterion(output, target, input_lens, target_lens)
+    output = self.model(input.to(self.device), input_lens) 
+    loss = self.criterion(output, target.to(self.device), input_lens, target_lens)
 
     return loss, output, target, transcripts
 
