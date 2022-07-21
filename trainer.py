@@ -208,6 +208,8 @@ class Trainer:
     running_loss = 0
     self.tr_step = 0
 
+    pbar = tqdm(total=self.max_step)
+    
     while self.tr_step < self.max_step:
       for batch in self.train_loader:
         
@@ -259,9 +261,12 @@ class Trainer:
           self.model.train()
         
         self.tr_step += 1
+        pbar.update(1)
         if self.tr_step == self.max_step:
           break
     
+    pbar.close()
+   
     # max step reached; training done; validate one last time
     print(f"validating final step {self.tr_step}...")
     # validation step
