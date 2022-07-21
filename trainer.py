@@ -211,7 +211,7 @@ class Trainer:
       running_loss = 0
       
       self.model.train()
-      for batch in tqdm(self.train_loader, position=0):
+      for batch in self.train_loader:
         
         self.optimizer.zero_grad()
         
