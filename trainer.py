@@ -15,10 +15,9 @@ from src.util import GreedyCTCDecoder
 
 class Trainer:
 
-  def __init__(self, **hparams):
+  def __init__(self, args, **hparams):
     
     self.hparams = hparams
-    self.device = hparams['device']
 
     self.num_epochs = hparams['num_epochs']
     self.lr = hparams['lr']
@@ -28,9 +27,10 @@ class Trainer:
     self.verbose = hparams['verbose'] if 'verbose' in hparams.keys() else True
     
     # logging and saving
-    self.output_dir = Path(hparams['output_dir']) if 'output_dir' in hparams else Path('.')
-    self.name = hparams['name'] if 'name' in hparams else datetime.now().strftime("%Y-%m-%d-%H_%M")
+    self.output_dir = Path(args.output_dir)
+    self.name = args.name
     self.write_dir = self.output_dir / self.name
+    self.write_dir.mkdir(parents=True, exist_ok=True)
     self.writer = SummaryWriter(log_dir=self.write_dir / 'log/')
     self.checkpoint_dir = self.write_dir / 'ckpt'
 
@@ -51,9 +51,11 @@ class Trainer:
     self.train_loader = torch.utils.data.DataLoader(self.train_set, 
                                                     batch_size=self.batch_size, pin_memory=True, 
                                                     shuffle=True, collate_fn=collate_fn)
+    # It's important that valid loader be set the `shuffle=False`, because we're logging predictions based 
+    # on the sample's index
     self.valid_loader = torch.utils.data.DataLoader(self.valid_set, 
                                                     batch_size=self.batch_size, pin_memory=True, 
-                                                    shuffle=True, collate_fn=collate_fn)
+                                                    shuffle=False, collate_fn=collate_fn)
     
     
     # decoder for cer
@@ -140,7 +142,7 @@ class Trainer:
     loss = running_loss / len(self.valid_loader)
     error = cer(transcripts, predictions)
 
-    return loss, error
+    return loss, error, zip(predictions[:5], transcripts[:5])
 
 
   def __call__(self):
@@ -158,12 +160,20 @@ class Trainer:
     print("Saved new best model")
 
 
-  def log_progress(self, epoch):
+  def log_progress(self, epoch, decoded_output):
     for metric in self.latest:
       self.writer.add_scalars(
           metric, 
           {dset: value for dset, value in self.latest[metric].items() if value}, 
           epoch)
+    
+    # write some text examples
+    
+    # if epoch == 0:
+    for idx, (pred, truth) in enumerate(decoded_output):
+      if epoch == 0:
+        self.writer.add_text(f'true_text_{idx}', truth, epoch)
+      self.writer.add_text(f'predicted_text_{idx}', pred, epoch)
 
 
   def update_milestone(self, epoch):
@@ -218,7 +228,7 @@ class Trainer:
       # quantize params since model is in `eval` mode, and thus forward pass
       # will not quantize them
       self.model.save_and_quantize_params()
-      valid_loss, error = self.validate()
+      valid_loss, error, decoded_output = self.validate()
 
       # reset full precision weights so next forward pass doesn't save
       # quantized params as `par.org`, thereby erasing full-precision `org`
@@ -231,6 +241,6 @@ class Trainer:
       self.latest['loss']['valid'] = valid_loss
       self.latest['cer']['valid'] = error
 
-      self.log_progress(epoch+1)
-      self.update_milestone(epoch+1)
-      self.write_progress(epoch+1)
+      self.log_progress(epoch, decoded_output)
+      self.update_milestone(epoch)
+      self.write_progress(epoch)

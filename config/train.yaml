@@ -1,9 +1,7 @@
 hparams:
-  name: 'my_exp'
   lr: 0.001
   batch_size: 4
   num_epochs: 100
-  output_dir: './'
   optimizer: 'Adam'
 data:
   root: 'data_test'
