@@ -251,7 +251,7 @@ class Trainer:
 
         self.optimizer.step()
         
-        if self.tr_step % self.valid_step == 0:
+        if (self.tr_step !=0) and (self.tr_step % self.valid_step == 0):
           print(f"validating step {self.tr_step}...")
           # record and reset training loss
           self.latest['loss']['train'] = running_loss / self.valid_step
