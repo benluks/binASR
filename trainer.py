@@ -167,10 +167,11 @@ class Trainer:
 
     # reset full precision weights so next forward pass doesn't save
     # quantized params as `par.org`, thereby erasing full-precision `org`
-    if self.tr_step != self.max_step-1:
+    if self.binary_training:
       for par in self.model.parameters():
           if hasattr(par, 'org'):
             par.data = par.org
+
 
   def __call__(self):
     self.train()
