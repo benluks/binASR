@@ -46,10 +46,11 @@ class BinASRModel(nn.Module):
                     )
 
         self.rnn = nn.Sequential(*layers)
-        self.fc = nn.Sequential(*[
-            nn.Linear((1+self.bidirectional)*self.hidden_size, self.output_size, bias=self.bias), 
-            nn.ReLU(inplace=True)
-            ])
+        
+        self.fc = nn.Sequential()
+        self.fc.add_module('linear', nn.Linear((1+self.bidirectional)*self.hidden_size, self.output_size, bias=self.bias))
+        self.fc.add_module('relu', nn.ReLU(inplace=True))
+        self.fc.add_module('softmax', nn.LogSoftmax(dim=-1))
 
     def forward(self, x, lens=None):
 
@@ -62,7 +63,6 @@ class BinASRModel(nn.Module):
         if not self.binary:    
             x, input_lens = pad_packed_sequence(x, batch_first=True)
         y = self.fc(x)
-        y = F.log_softmax(y, dim=-1)
         return y.permute(1, 0, 2)
     
     def save_and_quantize_params(self):

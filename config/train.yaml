@@ -12,11 +12,8 @@ data:
   eval_split: 'libri-test'
   num_mels: 23
   use_energy: False
-
 model:
   num_layers: 4
   bias: False
   hidden_size: 512
   bidirectional: True
-
-  
