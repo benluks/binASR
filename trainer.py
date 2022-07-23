@@ -69,6 +69,7 @@ class Trainer:
     kwargs['model']['input_size'] = kwargs['data']['num_mels'] + kwargs['data']['use_energy']
     kwargs['model']['output_size'] = len(labels)
     kwargs['model']['binary'] = self.binary_training
+    kwargs['model']['device'] = self.device
     self.model = BinASRModel(**kwargs['model']).to(self.device)
 
     # optimization
@@ -165,13 +166,6 @@ class Trainer:
     self.update_milestone()
     self.write_progress()
 
-    # reset full precision weights so next forward pass doesn't save
-    # quantized params as `par.org`, thereby erasing full-precision `org`
-    if self.binary_training:
-      for par in self.model.parameters():
-          if hasattr(par, 'org'):
-            par.data = par.org
-
 
   def __call__(self):
     self.train()
@@ -237,6 +231,12 @@ class Trainer:
       for batch in self.train_loader:
         
         self.optimizer.zero_grad()
+
+        # binarize weights for forward pass, second clause
+        # keeps weights from binarizing after validation, after
+        # which weights are already binary
+        if self.binary_training and not self.model.weights_binary:
+          self.model.save_and_quantize_params()
         
         loss, _, _, _ = self.step(batch)
         running_loss += loss.item()        
@@ -246,10 +246,8 @@ class Trainer:
         
         # reset to full precision weights here
         if self.binary_training:
-          for par in self.model.parameters():
-            if hasattr(par, 'org'):
-              par.data = par.org
-
+          self.model.reset_binarized_params()
+        
         self.optimizer.step()
         
         if (self.tr_step !=0) and (self.tr_step % self.valid_step == 0):

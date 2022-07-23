@@ -7,7 +7,7 @@ from src.util import binarize, qlstm_cell
 
 class QLSTM(nn.LSTM):
 
-    def __init__(self, *args, quant='bin', binarize_inputs=True, bn_inputs=False, **kwargs):
+    def __init__(self, quant='bin', binarize_inputs=True, bn_inputs=False, **kwargs):
 
         super().__init__(**kwargs)
         self.init_constant = kwargs['init_constant'] if 'init_constant' in kwargs.keys() else 6.
@@ -15,6 +15,7 @@ class QLSTM(nn.LSTM):
         self.binarize_inputs = binarize_inputs
         if self.binarize_inputs:
             self.bn_inputs = bn_inputs
+        self.device = kwargs['device']
 
         if self.quant:
             # layer-specific initializations 
