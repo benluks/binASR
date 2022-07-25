@@ -20,7 +20,6 @@ class Trainer:
     
     self.hparams = hparams
 
-    self.num_epochs = hparams['num_epochs']
     self.lr = hparams['lr']
     self.batch_size = hparams['batch_size']
     self.binary_training = hparams['binary']

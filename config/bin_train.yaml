@@ -1,7 +1,6 @@
 hparams:
   lr: 0.001
   batch_size: 4
-  num_epochs: 100
   optimizer: 'Adam'
   binary: True
   max_step: 100
