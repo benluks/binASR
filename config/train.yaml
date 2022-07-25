@@ -3,17 +3,19 @@ hparams:
   batch_size: 4
   num_epochs: 100
   optimizer: 'Adam'
-  binary: False
+  binary: True
   max_step: 1000000
   valid_step: 100
 data:
   root: 'data_test'
-  train_split: 'libri-test'
-  eval_split: 'libri-test'
+  train_split: 'test-clean'
+  eval_split: 'test-clean'
   num_mels: 23
   use_energy: False
 model:
-  num_layers: 4
+  linear_proj: 1
+  num_layers: 1
   bias: False
   hidden_size: 512
   bidirectional: True
+  dropout: 0.1

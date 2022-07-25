@@ -1,8 +1,7 @@
 from math import sqrt
-
 import torch
 import torch.nn as nn
-
+import torch.nn.functional as F
 from src.util import binarize, qlstm_cell
 
 class QLSTM(nn.LSTM):
@@ -157,3 +156,28 @@ class QLSTM(nn.LSTM):
             return outputs, (h_t, c_t)
 
 
+class FullyConnected(torch.nn.Module):
+    """
+    from https://pytorch.org/audio/stable/_modules/torchaudio/models/deepspeech.html
+    
+    Args:
+        n_feature: Number of input features
+        n_hidden: Internal hidden unit size.
+    """
+
+    def __init__(self, input_size, hidden_size, bias, dropout=0.1, relu_max_clip=20):
+        super(FullyConnected, self).__init__()
+        self.fc = nn.Linear(input_size, hidden_size, bias=bias)
+        self.relu = nn.ReLU()
+        self.dropout=dropout
+        self.relu_max_clip = relu_max_clip
+
+
+    def forward(self, x):
+        x = self.fc(x)
+        x = self.relu(x)
+        x = F.hardtanh(x, 0, self.relu_max_clip)
+
+        if self.dropout:
+            x = F.dropout(x, training=self.training)
+        return x

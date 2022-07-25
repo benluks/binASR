@@ -2,7 +2,7 @@ from torch import device
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-from src.module import QLSTM
+from src.module import QLSTM, FullyConnected
 
 class BinASRModel(nn.Module):
 
@@ -10,9 +10,10 @@ class BinASRModel(nn.Module):
         
         super().__init__()
         self.input_size = kwargs['input_size']
-        self.bias = kwargs['bias']
-
         self.hidden_size = kwargs['hidden_size']
+        self.bias = kwargs['bias']
+        self.dropout = kwargs['dropout']
+
         self.output_size = kwargs['output_size']
         self.bidirectional = kwargs['bidirectional']
         
@@ -23,33 +24,40 @@ class BinASRModel(nn.Module):
 
         layers = []
         self.num_layers = kwargs['num_layers']
+        
+        if kwargs['linear_proj'] != 0:
+            self.proj = nn.Sequential(*[FullyConnected(self.input_size, self.hidden_size, bias=self.bias, dropout=self.dropout)])
+            for _ in range(kwargs['linear_proj']-1):
+                self.proj.append(FullyConnected(self.hidden_size, self.hidden_size, bias=self.bias, dropout=self.dropout))
 
-        layers.append(nn.LSTM(self.input_size, self.hidden_size, batch_first=True, 
-                                    bias=self.bias, bidirectional=self.bidirectional))
+        else:
+            layers.append(
+                nn.LSTM(
+                    input_size=self.input_size, 
+                    hidden_size=self.hidden_size, 
+                    batch_first=True,  
+                    bias=self.bias, 
+                    bidirectional=self.bidirectional,
+                    device=self.device
+                )
+            )
 
-        for _ in range(self.num_layers-1):
+        for i in range(len(layers), self.num_layers):
             if self.binary:
-                layers.append(
-                    QLSTM(
-                        input_size=(1+self.bidirectional) * self.hidden_size, 
-                        hidden_size=self.hidden_size, 
-                        batch_first=True,  
-                        bias=self.bias, 
-                        bidirectional=self.bidirectional,
-                        device=self.device
-                        )
-                    )
+                module = QLSTM
             else:
-                layers.append(
-                    nn.LSTM(
-                        (1+self.bidirectional) * self.hidden_size, 
-                        self.hidden_size, 
-                        batch_first=True, 
-                        bias=self.bias, 
-                        bidirectional=self.bidirectional
-                        )
-                    )
-
+                module = nn.LSTM
+    
+            layers.append(
+                module(
+                    input_size=(1+(self.bidirectional * (i!=0))) * self.hidden_size, 
+                    hidden_size=self.hidden_size, 
+                    batch_first=True,  
+                    bias=self.bias, 
+                    bidirectional=self.bidirectional,
+                    device=self.device
+                )
+            )
         self.rnn = nn.Sequential(*layers)
         
         self.fc = nn.Sequential()
@@ -59,6 +67,11 @@ class BinASRModel(nn.Module):
 
     def forward(self, x, lens=None):
 
+        # [B, T, F]
+        if hasattr(self, 'proj'):
+            x = self.proj(x)
+            # [B, T, H]
+        
         if not self.binary:
             x = pack_padded_sequence(x, lens.cpu().numpy(), batch_first=True)
         
