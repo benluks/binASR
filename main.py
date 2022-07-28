@@ -19,7 +19,7 @@ config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
 
 
 if __name__ == '__main__':
-    # print(args)
+
     trainer = Trainer(args, **config['hparams'])
     trainer.build(**config)
     
