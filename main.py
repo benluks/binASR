@@ -24,6 +24,3 @@ if __name__ == '__main__':
     trainer.build(**config)
     
     trainer()
-
-
-
