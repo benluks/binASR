@@ -71,6 +71,9 @@ class BinASRModel(nn.Module):
         if hasattr(self, 'proj'):
             x = self.proj(x)
             # [B, T, H]
+            if self.binary:
+                # normalize mean to 0 so binarization isn't all 1s after ReLU
+                x.add_(-x.mean())
         
         if not self.binary:
             x = pack_padded_sequence(x, lens.cpu().numpy(), batch_first=True)
