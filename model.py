@@ -12,7 +12,7 @@ class BinASRModel(nn.Module):
         self.input_size = kwargs['input_size']
         self.hidden_size = kwargs['hidden_size']
         self.bias = kwargs['bias']
-        self.dropout = kwargs['dropout']
+        self.dropout = kwargs['dropout'] if 'dropout' in kwargs.keys() else 0
 
         self.output_size = kwargs['output_size']
         self.bidirectional = kwargs['bidirectional']
@@ -72,13 +72,13 @@ class BinASRModel(nn.Module):
             x = self.proj(x)
             # [B, T, H]
         
-        if not self.binary:
+        if not self.binary and self.training:
             x = pack_padded_sequence(x, lens.cpu().numpy(), batch_first=True)
         
         for rnn_layer in self.rnn:
             x, _ = rnn_layer(x)
         
-        if not self.binary:    
+        if not self.binary and self.training:    
             x, input_lens = pad_packed_sequence(x, batch_first=True)
         y = self.fc(x)
         return y.permute(1, 0, 2)
