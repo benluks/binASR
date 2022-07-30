@@ -94,7 +94,7 @@ class TestSolver:
 
             ground_truths.append(trans)
             
-            emission = self.model(feats.unsqueeze(0))
+            emission = self.model(feats.unsqueeze(0).to(self.device))
 
             beam_search_transcript = self.beam_search(emission).upper()
             print(beam_search_transcript, "|", self.greedy_decoder(emission)[0])
