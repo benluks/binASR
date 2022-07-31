@@ -146,10 +146,10 @@ class QLSTM(nn.LSTM):
             else:
                 # input is PackedPaddedSequence
                 start = 0
-                hidden_t = (hidden[0].clone(), hidden[1].clone())
+                hidden_t = hidden
                 if self.bidirectional:
                     end_reverse = 0
-                    hidden_t_reverse = (hidden_reverse[0].clone(), hidden_reverse[1].clone())
+                    hidden_t_reverse = hidden_reverse
                 for t in range(len(batch_sizes)):
                     
                     input_t = input[start:start+batch_sizes[t]]
@@ -170,8 +170,8 @@ class QLSTM(nn.LSTM):
                         # print(hidden_t_reverse[0].shape)
                         hidden_t_reverse = qlstm_cell(input_t_reverse, hidden_t_reverse, *layer_params_reverse)
                         
-                        hidden_reverse[0][:hidden_t_reverse[0].size(0)] = hidden_t_reverse[0]
-                        hidden_reverse[1][:hidden_t_reverse[1].size(0)] = hidden_t_reverse[1]
+                        hidden_reverse[0][:hidden_t_reverse[0].size(0)] = hidden_t_reverse[0].clone()
+                        hidden_reverse[1][:hidden_t_reverse[1].size(0)] = hidden_t_reverse[1].clone()
                         outputs_reverse = [hidden_t_reverse[0]] + outputs_reverse
 
                         end_reverse -= batch_sizes[-(t+1)]
