@@ -12,7 +12,7 @@ class BinASRModel(nn.Module):
         self.input_size = kwargs['input_size']
         self.hidden_size = kwargs['hidden_size']
         self.bias = kwargs['bias']
-        self.dropout = kwargs['dropout']
+        self.dropout = kwargs['dropout'] if 'dropout' in kwargs.keys() else 0
 
         self.output_size = kwargs['output_size']
         self.bidirectional = kwargs['bidirectional']

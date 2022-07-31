@@ -51,14 +51,14 @@ class Trainer:
     self.train_set = LibriData(split=train_split, **kwargs['data'])
     self.valid_set = LibriData(split=eval_split, **kwargs['data'])
     
-    self.train_loader = torch.utils.data.DataLoader(self.train_set, 
-                                                    batch_size=self.batch_size, pin_memory=True, 
-                                                    shuffle=True, collate_fn=collate_fn, num_workers=6)
+    self.train_loader = torch.utils.data.DataLoader(self.train_set, batch_size=self.batch_size, 
+                                                    pin_memory=True, shuffle=True, 
+                                                    collate_fn=collate_fn, num_workers=6)
     # It's important that valid loader be set the `shuffle=False`, because we're logging predictions based 
     # on the sample's index
-    self.valid_loader = torch.utils.data.DataLoader(self.valid_set, 
-                                                    batch_size=self.batch_size, pin_memory=True, 
-                                                    shuffle=False, collate_fn=collate_fn, num_workers=6)
+    self.valid_loader = torch.utils.data.DataLoader(self.valid_set, batch_size=self.batch_size, 
+                                                    pin_memory=True, shuffle=False, 
+                                                    collate_fn=collate_fn, num_workers=6)
     
     
     # decoder for cer
