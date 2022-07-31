@@ -86,8 +86,16 @@ class QLSTM(nn.LSTM):
 
 
     def forward(self, input, h_0=None):
-        T = input.size(0) if not self.batch_first else input.size(1)
-        B = input.size(1) if not self.batch_first else input.size(0)
+        if type(input) == nn.utils.rnn.PackedSequence:
+            pps = True
+            batch_sizes = input.batch_sizes
+            input = input.data
+            T = len(batch_sizes)
+            B = batch_sizes[0]
+        else:
+            pps = False
+            T = input.size(0) if not self.batch_first else input.size(1)
+            B = input.size(1) if not self.batch_first else input.size(0)
         
         # final hidden states (h and c) for each layer
         h_t = []
@@ -119,37 +127,77 @@ class QLSTM(nn.LSTM):
             if self.binarize_inputs:
                 input = binarize(input, getattr(self, f"a0_l{layer}"), device=self.device)
 
-            # loop through time steps
-            for t in range(T):
-                input_t = input[:, t, :] if self.batch_first else input[t]
-                    # print(f"normalized binarized inputs: {input}")
-                hidden = qlstm_cell(input_t, hidden, *layer_params)
-                
-                # maybe binarize hidden activations too
-                
-                outputs.append(hidden[0])
+            if not pps:
+                # loop through time steps
+                for t in range(T):
+                    input_t = input[:, t, :] if self.batch_first else input[t]
+                        # print(f"normalized binarized inputs: {input}")
+                    hidden = qlstm_cell(input_t, hidden, *layer_params)
+                    
+                    # maybe binarize hidden activations too
+                    
+                    outputs.append(hidden[0])
 
+                    if self.bidirectional:
+                        input_t_reverse = input[:, -(t+1), :] if self.batch_first else input[-(t+1)]
+                        hidden_reverse = qlstm_cell(input_t_reverse, hidden_reverse, *layer_params_reverse)
+                        outputs_reverse = [hidden_reverse[0]] + outputs_reverse
+            else:
+                # input is PackedPaddedSequence
+                start = 0
+                hidden_t = hidden
                 if self.bidirectional:
-                    input_t_reverse = input[:, -(t+1), :] if self.batch_first else input[-(t+1)]
-                    hidden_reverse = qlstm_cell(input_t_reverse, hidden_reverse, *layer_params_reverse)
-                    outputs_reverse = [hidden_reverse[0]] + outputs_reverse
-            
+                    end_reverse = 0
+                    hidden_t_reverse = hidden_reverse
+                for t in range(len(batch_sizes)):
+                    print(f"step {t}")
+                    input_t = input[start:start+batch_sizes[t]]
+
+                    hidden_t = hidden_t[0][:batch_sizes[t]], hidden_t[1][:batch_sizes[t]]
+                    hidden_t = qlstm_cell(input_t, hidden_t, *layer_params)
+                
+                    hidden[0][:hidden_t[0].size(0)] = hidden_t[0]
+                    hidden[1][:hidden_t[1].size(0)] = hidden_t[1]
+                    # tensor [B_t, H] where B_t is the batch size at the current t
+                    outputs.append(hidden_t[0])
+
+                    if self.bidirectional:
+                        start_reverse = end_reverse-batch_sizes[-(t+1)]
+                        input_t_reverse = input[start_reverse:end_reverse] if end_reverse != 0 else input[start_reverse:]
+                        
+                        hidden_t_reverse = hidden_reverse[0][:batch_sizes[-(t+1)]], hidden_reverse[1][:batch_sizes[-(t+1)]]
+                        # print(hidden_t_reverse[0].shape)
+                        hidden_t_reverse = qlstm_cell(input_t_reverse, hidden_t_reverse, *layer_params_reverse)
+                        
+                        hidden_reverse[0][:hidden_t_reverse[0].size(0)] = hidden_t_reverse[0]
+                        hidden_reverse[1][:hidden_t_reverse[1].size(0)] = hidden_t_reverse[1]
+                        outputs_reverse = [hidden_t_reverse[0]] + outputs_reverse
+
+                        end_reverse -= batch_sizes[-(t+1)]
+                        
+                    start += batch_sizes[t]
             # all time-steps are done, end T loop
             # -----------------------------------
             h_t.append(hidden)
-            outputs = torch.stack(outputs, 1 if self.batch_first else 0)
+            if not pps:
+                outputs = torch.stack(outputs, 1 if self.batch_first else 0)
+            else:
+                outputs=torch.cat(outputs)
 
             # reverse outputs
             if self.bidirectional:
                 h_t.append(hidden_reverse)
                 # outputs_reverse is shape [B, T, H], we want input to be [B, T, 2*H]
-                outputs_reverse = torch.stack(outputs_reverse, 1 if self.batch_first else 0)
+                if not pps:    
+                    outputs_reverse = torch.stack(outputs_reverse, 1 if self.batch_first else 0)
+                else:
+                    outputs_reverse = torch.cat(outputs_reverse)
                 outputs = torch.cat((outputs, outputs_reverse), dim=-1)
                 
             # prev hidden states as following layer's input      
             input = outputs
             
-            # h_t is [(h, c), (h, c), ...], we want to separate into lists [[h_0, h_1, ...], [c_0, c_1, ...]]
+            # h_t is [(h, c), (h, c), ...], we want to separate into lists [[h_l0, h_l1, ...], [c_l0, c_l1, ...]]
             h_t, c_t = list(zip(*h_t))
             h_t, c_t = torch.stack(h_t, 0), torch.stack(c_t, 0)
 
