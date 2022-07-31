@@ -1,6 +1,7 @@
 from math import sqrt
 import torch
 import torch.nn as nn
+from torch.nn.utils.rnn import PackedSequence
 import torch.nn.functional as F
 from src.util import binarize, qlstm_cell
 
@@ -89,7 +90,6 @@ class QLSTM(nn.LSTM):
         if type(input) == nn.utils.rnn.PackedSequence:
             pps = True
             batch_sizes = input.batch_sizes
-            input = input.data
             T = len(batch_sizes)
             B = batch_sizes[0]
         else:
@@ -101,7 +101,8 @@ class QLSTM(nn.LSTM):
         h_t = []
 
         for layer in range(self.num_layers):
-        
+            if type(input) == nn.utils.rnn.PackedSequence:
+                input = input.data
             layer_params = self._get_layer_params(layer)
             outputs = []
 
@@ -150,7 +151,7 @@ class QLSTM(nn.LSTM):
                     end_reverse = 0
                     hidden_t_reverse = hidden_reverse
                 for t in range(len(batch_sizes)):
-                    print(f"step {t}")
+                    
                     input_t = input[start:start+batch_sizes[t]]
 
                     hidden_t = hidden_t[0][:batch_sizes[t]], hidden_t[1][:batch_sizes[t]]
@@ -193,15 +194,18 @@ class QLSTM(nn.LSTM):
                 else:
                     outputs_reverse = torch.cat(outputs_reverse)
                 outputs = torch.cat((outputs, outputs_reverse), dim=-1)
+            
+            if pps:
+                outputs = PackedSequence(outputs, batch_sizes)
                 
             # prev hidden states as following layer's input      
             input = outputs
             
-            # h_t is [(h, c), (h, c), ...], we want to separate into lists [[h_l0, h_l1, ...], [c_l0, c_l1, ...]]
-            h_t, c_t = list(zip(*h_t))
-            h_t, c_t = torch.stack(h_t, 0), torch.stack(c_t, 0)
+        # h_t is [(h, c), (h, c), ...], we want to separate into lists [[h_l0, h_l1, ...], [c_l0, c_l1, ...]]
+        h_t, c_t = list(zip(*h_t))
+        h_t, c_t = torch.stack(h_t, 0), torch.stack(c_t, 0)
 
-            return outputs, (h_t, c_t)
+        return outputs, (h_t, c_t)
 
 
 class FullyConnected(torch.nn.Module):
