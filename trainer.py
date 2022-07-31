@@ -69,7 +69,11 @@ class Trainer:
     kwargs['model']['output_size'] = len(labels)
     kwargs['model']['binary'] = self.binary_training
     kwargs['model']['device'] = self.device
+    
     self.model = BinASRModel(**kwargs['model']).to(self.device)
+    if torch.cuda.device_count() > 1:
+      print(f"using {torch.cuda.device_count()} GPUs")
+      self.model = nn.DataParallel(self.model)
 
     # optimization
     self.optimizer = getattr(torch.optim, kwargs['hparams']['optimizer'])(self.model.parameters(), lr=self.lr)
