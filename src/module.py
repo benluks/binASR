@@ -146,10 +146,10 @@ class QLSTM(nn.LSTM):
             else:
                 # input is PackedPaddedSequence
                 start = 0
-                hidden_t = hidden
+                hidden_t = hidden.clone()
                 if self.bidirectional:
                     end_reverse = 0
-                    hidden_t_reverse = hidden_reverse
+                    hidden_t_reverse = hidden_reverse.clone()
                 for t in range(len(batch_sizes)):
                     
                     input_t = input[start:start+batch_sizes[t]]
