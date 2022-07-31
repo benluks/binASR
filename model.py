@@ -75,13 +75,13 @@ class BinASRModel(nn.Module):
                 # normalize mean to 0 so binarization isn't all 1s after ReLU
                 x.add_(-x.mean())
         
-        if not self.binary:
+        if not self.training:
             x = pack_padded_sequence(x, lens.cpu().numpy(), batch_first=True)
         
         for rnn_layer in self.rnn:
             x, _ = rnn_layer(x)
         
-        if not self.binary:    
+        if not self.training:    
             x, input_lens = pad_packed_sequence(x, batch_first=True)
         y = self.fc(x)
         return y.permute(1, 0, 2)
