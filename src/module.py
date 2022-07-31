@@ -157,8 +157,8 @@ class QLSTM(nn.LSTM):
                     hidden_t = hidden_t[0][:batch_sizes[t]], hidden_t[1][:batch_sizes[t]]
                     hidden_t = qlstm_cell(input_t, hidden_t, *layer_params)
                 
-                    hidden[0][:hidden_t[0].size(0)] = hidden_t[0]
-                    hidden[1][:hidden_t[1].size(0)] = hidden_t[1]
+                    # hidden[0][:hidden_t[0].size(0)] = hidden_t[0]
+                    # hidden[1][:hidden_t[1].size(0)] = hidden_t[1]
                     # tensor [B_t, H] where B_t is the batch size at the current t
                     outputs.append(hidden_t[0])
 
