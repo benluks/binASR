@@ -167,11 +167,10 @@ class QLSTM(nn.LSTM):
                         input_t_reverse = input[start_reverse:end_reverse] if end_reverse != 0 else input[start_reverse:]
                         
                         hidden_t_reverse = hidden_reverse[0][:batch_sizes[-(t+1)]], hidden_reverse[1][:batch_sizes[-(t+1)]]
-                        # print(hidden_t_reverse[0].shape)
                         hidden_t_reverse = qlstm_cell(input_t_reverse, hidden_t_reverse, *layer_params_reverse)
                         
-                        hidden_reverse[0][:hidden_t_reverse[0].size(0)] = hidden_t_reverse[0].clone()
-                        hidden_reverse[1][:hidden_t_reverse[1].size(0)] = hidden_t_reverse[1].clone()
+                        # hidden_reverse[0][:hidden_t_reverse[0].size(0)] = hidden_t_reverse[0]
+                        # hidden_reverse[1][:hidden_t_reverse[1].size(0)] = hidden_t_reverse[1]
                         outputs_reverse = [hidden_t_reverse[0]] + outputs_reverse
 
                         end_reverse -= batch_sizes[-(t+1)]
