@@ -25,6 +25,7 @@ class BinASRModel(nn.Module):
         layers = []
         self.num_layers = kwargs['num_layers']
         
+        if 'linear_proj' not in kwargs: kwargs['linear_proj'] = 0
         if kwargs['linear_proj'] != 0:
             self.proj = nn.Sequential(*[FullyConnected(self.input_size, self.hidden_size, bias=self.bias, dropout=self.dropout)])
             for _ in range(kwargs['linear_proj']-1):
@@ -75,13 +76,13 @@ class BinASRModel(nn.Module):
                 # normalize mean to 0 so binarization isn't all 1s after ReLU
                 x.add_(-x.mean())
         
-        if not self.binary:
+        if not self.binary and self.training:
             x = pack_padded_sequence(x, lens.cpu().numpy(), batch_first=True)
         
         for rnn_layer in self.rnn:
             x, _ = rnn_layer(x)
         
-        if not self.binary:    
+        if not self.binary and self.training:    
             x, input_lens = pad_packed_sequence(x, batch_first=True)
         y = self.fc(x)
         return y.permute(1, 0, 2)

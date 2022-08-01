@@ -1,0 +1,13 @@
+hparams:
+    binary: False
+data:
+  root: 'data_test'
+  split: 'test-clean'
+  num_mels: 23
+  use_energy: False
+model:
+  linear_proj: 0
+  num_layers: 2
+  bias: False
+  hidden_size: 512
+  bidirectional: True

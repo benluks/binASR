@@ -16,18 +16,18 @@ from src.util import GreedyCTCDecoder
 
 class Trainer:
 
-  def __init__(self, args, **hparams):
+  def __init__(self, args, **kwargs):
     
-    self.hparams = hparams
+    self.hparams = kwargs['hparams']
 
-    self.lr = hparams['lr']
-    self.batch_size = hparams['batch_size']
-    self.binary_training = hparams['binary']
-    self.valid_step = hparams['valid_step']
-    self.max_step = hparams['max_step']
+    self.lr = self.hparams['lr']
+    self.batch_size = self.hparams['batch_size']
+    self.binary_training = self.hparams['binary']
+    self.valid_step = self.hparams['valid_step']
+    self.max_step = self.hparams['max_step']
     
     self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    self.verbose = hparams['verbose'] if 'verbose' in hparams.keys() else True
+    self.verbose = self.hparams['verbose'] if 'verbose' in self.hparams.keys() else True
     
     # logging and saving
     self.output_dir = Path(args.output_dir)
