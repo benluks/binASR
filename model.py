@@ -25,6 +25,7 @@ class BinASRModel(nn.Module):
         layers = []
         self.num_layers = kwargs['num_layers']
         
+        if 'linear_proj' not in kwargs: kwargs['linear_proj'] = 0
         if kwargs['linear_proj'] != 0:
             self.proj = nn.Sequential(*[FullyConnected(self.input_size, self.hidden_size, bias=self.bias, dropout=self.dropout)])
             for _ in range(kwargs['linear_proj']-1):
