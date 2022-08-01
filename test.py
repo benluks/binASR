@@ -2,6 +2,7 @@ from data.librispeech import LibriData, labels
 from model import BinASRModel
 
 from jiwer import wer
+from pathlib import Path
 import torch
 from torchaudio.models.decoder import ctc_decoder, download_pretrained_files
 from tqdm import tqdm
@@ -9,7 +10,7 @@ from src.util import GreedyCTCDecoder
 
 
 class Tester:
-    def __init__(self, *args, **kwargs):
+    def __init__(self, args, **kwargs):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.use_lm = kwargs['lm'] if 'lm' in kwargs.keys() else True
         
@@ -19,6 +20,11 @@ class Tester:
             self.LM_WEIGHT = 5
             self.WORD_SCORE = 0
             self.BEAM_SIZE = kwargs['beam_size'] if 'beam_size' in kwargs.keys() else 500
+            
+            self.output_dir = Path(args.output_dir)
+            self.name = args.name
+            self.write_dir = self.output_dir / self.name
+            self.write_dir.mkdir(parents=True, exist_ok=True)
 
 
     def build(self, **kwargs):
@@ -77,8 +83,8 @@ class Tester:
         
 
     def __call__(self):
-        error = self.test()
-        print(error)
+        self.test()
+        
 
 
     def beam_search(self, emission):
@@ -92,18 +98,24 @@ class Tester:
 
 
     def test(self):
-        ground_truths = []
-        predictions = []
 
-        for feats, trans in tqdm(self.test_set):
+        outf = self.write_dir/"testing.csv"
 
-            ground_truths.append(trans)
+        with open(self.write_dir/"testing.csv", 'a') as f:
             
-            emission = self.model(feats.unsqueeze(0).to(self.device))
+            start_idx = 0
+            if outf.is_file():
+                start_idx = sum(1 for _ in open(outf))
+            
+            for i in tqdm(range(start_idx, len(self.test_set))):
+                feats, trans = self.test_set[i]
+                emission = self.model(feats.unsqueeze(0).to(self.device))
 
-            beam_search_transcript = self.beam_search(emission.to(torch.device('cpu'))).upper()
-            print(beam_search_transcript, "|", self.greedy_decoder(emission)[0])
-            predictions.append(beam_search_transcript)
+                beam_search_transcript = self.beam_search(emission.to(torch.device('cpu'))).upper()
+                greedy_transcript = self.greedy_decoder(emission)[0]
+
+                f.write(f"{i}\t{trans}\t{beam_search_transcript}\t{greedy_transcript}\n")
+                
         
-        return wer(ground_truths, predictions)
+
 
