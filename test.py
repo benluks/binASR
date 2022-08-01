@@ -9,13 +9,12 @@ from tqdm import tqdm
 from src.util import GreedyCTCDecoder
 
 
-class TestSolver:
+class Tester:
     def __init__(self, *args, **kwargs):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-        self.use_lm = 'lm' in kwargs['decoder'].keys()
+        self.use_lm = kwargs['lm'] if 'lm' in kwargs.keys() else True
         
         if self.use_lm:
-            self.lm = kwargs['decoder']['lm']
             self.tokens = [label.lower() for label in labels]
             self.tokens[self.tokens.index(' ')] = "|"
             self.LM_WEIGHT = 5
@@ -30,6 +29,12 @@ class TestSolver:
         """
 
         # data
+        if 'train_split' in kwargs['data'].keys():
+            kwargs['data'].pop('train_split')
+        if 'eval_split' in kwargs['data'].keys():
+            kwargs['data'].pop('eval_split')
+
+        kwargs['data']['split'] = 'test-clean'
         self.test_set = LibriData(**kwargs['data'])
         # self.test_loader = torch.utils.data.DataLoader(self.train_set, 
         #                                                 batch_size=self.batch_size, pin_memory=True, 
@@ -39,6 +44,7 @@ class TestSolver:
         kwargs['model']['input_size'] = kwargs['data']['num_mels'] + kwargs['data']['use_energy']
         kwargs['model']['output_size'] = len(labels)
 
+        kwargs['model']['binary'] = kwargs['hparams']['binary']
         kwargs['model']['device'] = self.device
         self.model = BinASRModel(**kwargs['model']).to(self.device)
         self.model.load_state_dict(torch.load(kwargs['model']['ckpt'], map_location=self.device))

@@ -2,7 +2,7 @@ hparams:
   lr: 0.001
   batch_size: 4
   optimizer: 'Adam'
-  binary: True
+  binary: False
   max_step: 1000000
   valid_step: 100
 data:
@@ -12,8 +12,8 @@ data:
   num_mels: 23
   use_energy: False
 model:
-  linear_proj: 1
-  num_layers: 1
+  linear_proj: 0
+  num_layers: 2
   bias: False
   hidden_size: 512
   bidirectional: True

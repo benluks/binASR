@@ -4,7 +4,7 @@ import torch
 import yaml
 
 from trainer import Trainer
-from test import TestSolver
+from test import Tester
 
 parser = ArgumentParser(description="Meta Arguments for training/testing binarized ASR")
 
@@ -17,14 +17,11 @@ parser.add_argument('--ckpt', type=str, help="checkpoint path of model")
 
 args = parser.parse_args()
 
-if (args.train and args.test) or (not (args.train or args.test)):
-    parser.error("You must specify at least one of '--train' or '--test' and not both.")
-
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
 
-if args.train: Solver = Trainer
-elif args.test: Solver = TestSolver
+if args.test: Solver = Tester
+else: Solver = Trainer
 
 if args.ckpt:
     config['model']['ckpt'] = args.ckpt
