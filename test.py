@@ -1,6 +1,5 @@
-from data.librispeech import LibriData, collate_fn, labels
+from data.librispeech import LibriData, labels
 from model import BinASRModel
-from copy import deepcopy
 
 from jiwer import wer
 import torch
