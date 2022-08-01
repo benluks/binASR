@@ -19,7 +19,7 @@ class Tester:
             self.tokens[self.tokens.index(' ')] = "|"
             self.LM_WEIGHT = 5
             self.WORD_SCORE = 0
-            self.BEAM_SIZE = kwargs['beam_size'] if 'beam_size' in kwargs.keys() else 1500
+            self.BEAM_SIZE = kwargs['beam_size'] if 'beam_size' in kwargs.keys() else 500
 
 
     def build(self, **kwargs):
