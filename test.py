@@ -101,11 +101,11 @@ class Tester:
 
         outf = self.write_dir/"testing.csv"
 
+        start_idx = 0
+        if outf.is_file():
+            start_idx = sum(1 for _ in open(outf))
+
         with open(self.write_dir/"testing.csv", 'a') as f:
-            
-            start_idx = 0
-            if outf.is_file():
-                start_idx = sum(1 for _ in open(outf))
             
             for i in tqdm(range(start_idx, len(self.test_set))):
                 feats, trans = self.test_set[i]
