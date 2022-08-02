@@ -27,9 +27,9 @@ class BinASRModel(nn.Module):
         
         if 'linear_proj' not in kwargs: kwargs['linear_proj'] = 0
         if kwargs['linear_proj'] != 0:
-            self.proj = nn.Sequential(*[FullyConnected(self.input_size, self.hidden_size, bias=self.bias, dropout=self.dropout)])
+            self.proj = nn.Sequential(*[FullyConnected(self.input_size, self.hidden_size, bias=True, dropout=self.dropout)])
             for _ in range(kwargs['linear_proj']-1):
-                self.proj.append(FullyConnected(self.hidden_size, self.hidden_size, bias=self.bias, dropout=self.dropout))
+                self.proj.append(FullyConnected(self.hidden_size, self.hidden_size, bias=True, dropout=self.dropout))
 
         else:
             layers.append(
@@ -62,7 +62,7 @@ class BinASRModel(nn.Module):
         self.rnn = nn.Sequential(*layers)
         
         self.fc = nn.Sequential()
-        self.fc.add_module('linear', nn.Linear((1+self.bidirectional)*self.hidden_size, self.output_size, bias=self.bias))
+        self.fc.add_module('linear', nn.Linear((1+self.bidirectional)*self.hidden_size, self.output_size, bias=True))
         self.fc.add_module('relu', nn.ReLU(inplace=True))
         self.fc.add_module('softmax', nn.LogSoftmax(dim=-1))
 
