@@ -13,7 +13,7 @@ parser.add_argument('--test', action='store_true', help="Enable test mode")
 parser.add_argument('--config', '-c', type=str, help="Path to config file")
 parser.add_argument('--name', '-n', type=str, help="Name of experiment", default=datetime.now().strftime("%Y-%m-%d-%H_%M"))
 parser.add_argument('--output_dir', '-o', type=str, help="Directory to output logs and checkpoints", default='./')
-parser.add_argument('--ckpt', type=str, help="checkpoint path of model")
+parser.add_argument('--ckpt', type=str, help="checkpoint path of pre-trained model. So far only implemented for testing mode")
 
 args = parser.parse_args()
 
