@@ -1,6 +1,10 @@
 
+from pathlib import Path
 import torch
 import torch.nn as nn
+import yaml
+
+from ..model import BinASRModel
 
 def binarize(W, W0, device):
     """
@@ -70,3 +74,13 @@ class GreedyCTCDecoder(torch.nn.Module):
             decoded.append("".join([self.labels[i] for i in batch]))
 
         return decoded
+
+
+def load_model_from_config(config_path):
+
+    config = yaml.load(open(config_path, 'r'), Loader=yaml.FullLoader)
+    config['model']['input_size'] = config['data']['num_mels'] + config['data']['use_energy']
+    config['model']['output_size'] = 29
+    config['model']['binary'] = config['hparams']['binary']
+
+    return BinASRModel(**config['model'])
