@@ -34,16 +34,20 @@ def collate_fn(batch):
 
 class LibriData(torchaudio.datasets.LIBRISPEECH):
 
-  def __init__(self, root, split, feature='fbank', num_mels=23, use_energy=False):
+  def __init__(self, root, split, feature='fbank', num_mels=23, use_energy=False, normalize=True):
     super().__init__(root=root, url=split)
     self.mels = num_mels
     self.featurizer = getattr(torchaudio.compliance.kaldi, feature.lower())
     self.input_size = self.mels + use_energy
+    self.normalize = normalize
 
   def __getitem__(self, index):
 
     waveform, _, trans, _, _, _ = super().__getitem__(index)
     speech_features = self.featurizer(waveform, num_mel_bins=self.mels)
+    
+    if self.normalize:
+      speech_features.add_(-speech_features.mean()).div_(speech_features.std())
 
     return speech_features, trans
 
