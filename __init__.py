@@ -1,1 +1,1 @@
-from .test import TestSolver
+from .test import Tester
