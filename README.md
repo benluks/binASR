@@ -1,6 +1,6 @@
 # binASR (ASR with Binarized Neural Networks)
 
-Binarized LSTMs, per Ardakani et al. (2018).
+This code accompanies the thesis [Binarized Neural Networks for End-to-End ASR](https://drive.google.com/file/d/1toXdjL0SpaEXtaZiM-fgHHW7XD9cQH2u/view?usp=drive_link), and implements binarized LSTMs, per Ardakani et al. (2018).
 
 To install the requirements, run:
 
